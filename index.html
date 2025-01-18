@@ -172,16 +172,42 @@
         let currentY = 0;
         
         while (currentY < CANVAS_HEIGHT) {
-          // Increased probability for thin strips
-          if (p.random() < 0.15 && currentY < CANVAS_HEIGHT - 4) {
-            let height = Math.max(0.5, Math.round(p.random(0.5, 4) * 2) / 2);
+          // Increased probability for thin wide strips
+          if (p.random() < 0.2 && currentY < CANVAS_HEIGHT - 5) {  // 20% chance for thin strips
+            // Generate a thin strip between 1" and 5" tall
+            let height = Math.round(p.random(1, 5));
+            
+            // 36" wide strip, centered
+            let xOffset = (CANVAS_WIDTH - 36) / 2; // Center the 36" strip
             rectangles.push({
-              x: 0,
+              x: xOffset,
               y: currentY,
-              width: CANVAS_WIDTH,
+              width: 36,
               height: height,
-              isFullWidth: true
+              isFullWidth: false
             });
+            
+            // Add side pieces if there's room
+            if (xOffset > 0) {
+              // Left side piece
+              rectangles.push({
+                x: 0,
+                y: currentY,
+                width: xOffset,
+                height: height,
+                isFullWidth: false
+              });
+              
+              // Right side piece
+              rectangles.push({
+                x: xOffset + 36,
+                y: currentY,
+                width: xOffset,
+                height: height,
+                isFullWidth: false
+              });
+            }
+            
             currentY += height;
             continue;
           }
