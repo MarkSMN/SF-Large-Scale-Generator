@@ -128,8 +128,10 @@
         
         p.setup = function() {
           p.createCanvas(CANVAS_WIDTH * SCALE, CANVAS_HEIGHT * SCALE);
-          colorA = p.color(10, 16, 25);
-          colorB = p.color(91, 84, 72);
+          const initialColorA = p.color(10, 16, 25);
+          const initialColorB = p.color(91, 84, 72);
+          colorA = initialColorA;
+          colorB = initialColorB;
           generateComposition();
         };
         
@@ -287,22 +289,46 @@
     });
     
     // Handle color changes
+    function rgbToHex(r, g, b) {
+      return '#' + [r, g, b].map(x => {
+        const hex = Math.round(x).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      }).join('');
+    }
+
     function updateColors() {
       const colorA = document.getElementById('colorA').value;
       const colorB = document.getElementById('colorB').value;
+      
+      // Update color swatches
       document.getElementById('swatchA').style.backgroundColor = colorA;
       document.getElementById('swatchB').style.backgroundColor = colorB;
       
-      sketch1.updateColors(sketch1._renderer._pInst.color(colorA), sketch1._renderer._pInst.color(colorB));
-      sketch2.updateColors(sketch2._renderer._pInst.color(colorA), sketch2._renderer._pInst.color(colorB));
+      // Convert hex to p5 color objects and update sketches
+      const p5colorA1 = sketch1._renderer._pInst.color(colorA);
+      const p5colorB1 = sketch1._renderer._pInst.color(colorB);
+      const p5colorA2 = sketch2._renderer._pInst.color(colorA);
+      const p5colorB2 = sketch2._renderer._pInst.color(colorB);
+      
+      sketch1.updateColors(p5colorA1, p5colorB1);
+      sketch2.updateColors(p5colorA2, p5colorB2);
     }
     
+    // Set initial colors (RGB: 10,16,25 and 91,84,72)
+    const initialColorA = rgbToHex(10, 16, 25);
+    const initialColorB = rgbToHex(91, 84, 72);
+    
+    // Set initial values for color inputs
+    document.getElementById('colorA').value = initialColorA;
+    document.getElementById('colorB').value = initialColorB;
+    
+    // Set initial swatch colors
+    document.getElementById('swatchA').style.backgroundColor = initialColorA;
+    document.getElementById('swatchB').style.backgroundColor = initialColorB;
+    
+    // Add color change listeners
     document.getElementById('colorA').addEventListener('input', updateColors);
     document.getElementById('colorB').addEventListener('input', updateColors);
-    
-    // Initialize color swatches
-    document.getElementById('swatchA').style.backgroundColor = '#0A1019';
-    document.getElementById('swatchB').style.backgroundColor = '#5B5448';
     
     // Function to regenerate both compositions
     function regenerateAll() {
