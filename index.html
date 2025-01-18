@@ -3,23 +3,24 @@
 <head>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
-    /* Previous CSS remains the same */
     body { 
       margin: 0; 
-      display: flex; 
-      flex-direction: column;
-      align-items: center; 
+      padding: 20px;
       min-height: 100vh;
       background: rgb(50, 50, 50);
       font-family: Arial, sans-serif;
-      padding: 10px;
-    }
-    .container {
       display: flex;
       flex-direction: column;
       align-items: center;
+    }
+    #sketches {
+      display: flex;
+      justify-content: center;
       gap: 20px;
       margin-top: 40px;
+    }
+    #sketch1, #sketch2 {
+      position: relative;
     }
     canvas {
       border: 1px solid #333;
@@ -68,10 +69,6 @@
       border: none;
       padding: 0;
       cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .color-swatch:hover {
-      transform: scale(1.05);
     }
     input[type="color"] {
       opacity: 0;
@@ -80,220 +77,240 @@
       height: 20px;
       cursor: pointer;
     }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .checkbox-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #333;
+      text-transform: uppercase;
+    }
   </style>
 </head>
 <body>
-  <script>
-    let sketch = function(p) {
-      const SCALE = 8;
-      const CANVAS_WIDTH = 48;
-      const CANVAS_HEIGHT = 60;
-      const STRIP_WIDTHS = [4, 8, 12, 16, 20, 24];
-      
-      let colorA;
-      let colorB;
-      let rectangles = [];
+  <div id="sketches">
+    <div id="sketch1"></div>
+    <div id="sketch2"></div>
+  </div>
+  <div class="controls">
+    <div class="checkbox-group">
+      <input type="checkbox" id="diptychToggle">
+      <label for="diptychToggle" class="checkbox-label">DIPTYCH</label>
+    </div>
+    <button class="randomizer-btn" onclick="regenerateAll()">RANDOMIZER</button>
+    <div class="color-group">
+      <span class="color-label">LEFT</span>
+      <input type="color" id="colorA" value="#0A1019">
+      <div class="color-swatch" id="swatchA"></div>
+    </div>
+    <div class="color-group">
+      <span class="color-label">RIGHT</span>
+      <input type="color" id="colorB" value="#5B5448">
+      <div class="color-swatch" id="swatchB"></div>
+    </div>
+  </div>
 
-      function biasedWidthSelection() {
-        const rand = p.random();
-        if (rand < 0.4) { // 40% chance for small sizes
-          return STRIP_WIDTHS.slice(0, 2)[Math.floor(p.random(2))];
-        } else if (rand < 0.7) { // 30% chance for large sizes
-          return STRIP_WIDTHS.slice(-2)[Math.floor(p.random(2))];
-        } else { // 30% chance for middle sizes
-          return STRIP_WIDTHS.slice(2, 4)[Math.floor(p.random(2))];
-        }
-      }
-      
-      p.setup = function() {
-        const container = p.createDiv('');
-        container.class('container');
+  <script>
+    let sketch1, sketch2;
+    
+    function createSketch(parent) {
+      return new p5((p) => {
+        const SCALE = 8;
+        const CANVAS_WIDTH = 48;
+        const CANVAS_HEIGHT = 60;
+        const STRIP_WIDTHS = [4, 8, 12, 16, 20, 24];
         
-        const canvas = p.createCanvas(CANVAS_WIDTH * SCALE, CANVAS_HEIGHT * SCALE);
-        container.child(canvas);
+        let rectangles = [];
+        let colorA, colorB;
         
-        const controls = p.createDiv('');
-        controls.class('controls');
-        container.child(controls);
+        p.setup = function() {
+          p.createCanvas(CANVAS_WIDTH * SCALE, CANVAS_HEIGHT * SCALE);
+          colorA = p.color(10, 16, 25);
+          colorB = p.color(91, 84, 72);
+          generateComposition();
+        };
         
-        let regenButton = p.createButton('RANDOMIZER');
-        regenButton.class('randomizer-btn');
-        regenButton.mousePressed(generateComposition);
-        controls.child(regenButton);
-        
-        const leftGroup = p.createDiv('');
-        leftGroup.class('color-group');
-        const leftLabel = p.createSpan('LEFT');
-        leftLabel.class('color-label');
-        leftGroup.child(leftLabel);
-        
-        const leftSwatch = p.createDiv('');
-        leftSwatch.class('color-swatch');
-        let colorAInput = p.createInput('rgb(10,16,25)', 'color');
-        leftSwatch.child(colorAInput);
-        leftGroup.child(leftSwatch);
-        controls.child(leftGroup);
-        
-        const rightGroup = p.createDiv('');
-        rightGroup.class('color-group');
-        const rightLabel = p.createSpan('RIGHT');
-        rightLabel.class('color-label');
-        rightGroup.child(rightLabel);
-        
-        const rightSwatch = p.createDiv('');
-        rightSwatch.class('color-swatch');
-        let colorBInput = p.createInput('rgb(91,84,72)', 'color');
-        rightSwatch.child(colorBInput);
-        rightGroup.child(rightSwatch);
-        controls.child(rightGroup);
-        
-        colorAInput.input(() => {
-          colorA = p.color(colorAInput.value());
-          leftSwatch.style('background-color', colorAInput.value());
-          p.redraw();
-        });
-        
-        colorBInput.input(() => {
-          colorB = p.color(colorBInput.value());
-          rightSwatch.style('background-color', colorBInput.value());
-          p.redraw();
-        });
-        
-        colorA = p.color(10, 16, 25);
-        colorB = p.color(91, 84, 72);
-        leftSwatch.style('background-color', `rgb(10,16,25)`);
-        rightSwatch.style('background-color', `rgb(91,84,72)`);
-        
-        generateComposition();
-      };
-      
-      function generateComposition() {
-        rectangles = [];
-        let currentY = 0;
-        
-        while (currentY < CANVAS_HEIGHT) {
-          // Increased probability for thin wide strips
-          if (p.random() < 0.2 && currentY < CANVAS_HEIGHT - 5) {  // 20% chance for thin strips
-            // Generate a thin strip between 1" and 5" tall
-            let height = Math.round(p.random(1, 5));
-            
-            // 36" wide strip, centered
-            let xOffset = (CANVAS_WIDTH - 36) / 2; // Center the 36" strip
-            rectangles.push({
-              x: xOffset,
-              y: currentY,
-              width: 36,
-              height: height,
-              isFullWidth: false
-            });
-            
-            // Add side pieces if there's room
-            if (xOffset > 0) {
-              // Left side piece
+        function generateComposition() {
+          rectangles = [];
+          let currentY = 0;
+          
+          while (currentY < CANVAS_HEIGHT) {
+            if (p.random() < 0.2 && currentY < CANVAS_HEIGHT - 5) {
+              let height = Math.round(p.random(1, 5));
+              let xOffset = (CANVAS_WIDTH - 36) / 2;
+              
               rectangles.push({
-                x: 0,
+                x: xOffset,
                 y: currentY,
-                width: xOffset,
+                width: 36,
                 height: height,
                 isFullWidth: false
               });
               
-              // Right side piece
-              rectangles.push({
-                x: xOffset + 36,
-                y: currentY,
-                width: xOffset,
-                height: height,
-                isFullWidth: false
-              });
-            }
-            
-            currentY += height;
-            continue;
-          }
-          
-          let remainingHeight = CANVAS_HEIGHT - currentY;
-          // Modified height generation to favor more extreme values
-          let rowHeight = Math.min(
-            remainingHeight,
-            Math.max(4, Math.round(p.random() < 0.7 ? p.random(4, 8) : p.random(12, 16)) * 2) / 2
-          );
-          
-          let currentX = 0;
-          while (currentX < CANVAS_WIDTH) {
-            let remainingWidth = CANVAS_WIDTH - currentX;
-            let availableWidths = STRIP_WIDTHS.filter(w => w <= remainingWidth);
-            
-            if (availableWidths.length === 0) {
-              rectangles.push({
-                x: currentX,
-                y: currentY,
-                width: remainingWidth,
-                height: rowHeight
-              });
-              break;
-            }
-            
-            // Use biased width selection
-            let width = biasedWidthSelection();
-            while (width > remainingWidth) {
-              width = biasedWidthSelection();
-            }
-            
-            // Reduced probability of subdivision for large rectangles
-            if (width >= 16 && p.random() < 0.2) {
-              let numSections = 2;
-              let subWidth = width / numSections;
-              for (let i = 0; i < numSections; i++) {
+              if (xOffset > 0) {
                 rectangles.push({
-                  x: currentX + (i * subWidth),
+                  x: 0,
                   y: currentY,
-                  width: subWidth,
+                  width: xOffset,
+                  height: height,
+                  isFullWidth: false
+                });
+                
+                rectangles.push({
+                  x: xOffset + 36,
+                  y: currentY,
+                  width: xOffset,
+                  height: height,
+                  isFullWidth: false
+                });
+              }
+              
+              currentY += height;
+              continue;
+            }
+            
+            let remainingHeight = CANVAS_HEIGHT - currentY;
+            let rowHeight = Math.min(
+              remainingHeight,
+              Math.max(4, Math.round(p.random() < 0.7 ? p.random(4, 8) : p.random(12, 16)) * 2) / 2
+            );
+            
+            let currentX = 0;
+            while (currentX < CANVAS_WIDTH) {
+              let remainingWidth = CANVAS_WIDTH - currentX;
+              let availableWidths = STRIP_WIDTHS.filter(w => w <= remainingWidth);
+              
+              if (availableWidths.length === 0) {
+                rectangles.push({
+                  x: currentX,
+                  y: currentY,
+                  width: remainingWidth,
+                  height: rowHeight
+                });
+                break;
+              }
+              
+              let width = biasedWidthSelection();
+              while (width > remainingWidth) {
+                width = biasedWidthSelection();
+              }
+              
+              if (width >= 16 && p.random() < 0.2) {
+                let numSections = 2;
+                let subWidth = width / numSections;
+                for (let i = 0; i < numSections; i++) {
+                  rectangles.push({
+                    x: currentX + (i * subWidth),
+                    y: currentY,
+                    width: subWidth,
+                    height: rowHeight
+                  });
+                }
+              } else {
+                rectangles.push({
+                  x: currentX,
+                  y: currentY,
+                  width: width,
                   height: rowHeight
                 });
               }
-            } else {
-              rectangles.push({
-                x: currentX,
-                y: currentY,
-                width: width,
-                height: rowHeight
-              });
+              
+              currentX += width;
             }
             
-            currentX += width;
+            currentY += rowHeight;
           }
           
-          currentY += rowHeight;
+          p.redraw();
         }
         
-        p.redraw();
-      }
-      
-      p.draw = function() {
-        p.background(255);
-        
-        rectangles.forEach(rect => {
-          let x = rect.x * SCALE;
-          let y = rect.y * SCALE;
-          let w = rect.width * SCALE;
-          let h = rect.height * SCALE;
-          
-          for (let i = 0; i < w; i++) {
-            let inter = i / w;
-            let c = p.lerpColor(colorA, colorB, inter);
-            p.stroke(c);
-            p.line(x + i, y, x + i, y + h);
+        function biasedWidthSelection() {
+          const rand = p.random();
+          if (rand < 0.4) {
+            return STRIP_WIDTHS.slice(0, 2)[Math.floor(p.random(2))];
+          } else if (rand < 0.7) {
+            return STRIP_WIDTHS.slice(-2)[Math.floor(p.random(2))];
+          } else {
+            return STRIP_WIDTHS.slice(2, 4)[Math.floor(p.random(2))];
           }
+        }
+        
+        p.draw = function() {
+          p.background(255);
           
-          p.stroke(0);
-          p.noFill();
-          p.rect(x, y, w, h);
-        });
-      };
-    };
-
-    new p5(sketch);
+          rectangles.forEach(rect => {
+            let x = rect.x * SCALE;
+            let y = rect.y * SCALE;
+            let w = rect.width * SCALE;
+            let h = rect.height * SCALE;
+            
+            for (let i = 0; i < w; i++) {
+              let inter = i / w;
+              let c = p.lerpColor(colorA, colorB, inter);
+              p.stroke(c);
+              p.line(x + i, y, x + i, y + h);
+            }
+            
+            p.stroke(0);
+            p.noFill();
+            p.rect(x, y, w, h);
+          });
+        };
+        
+        p.updateColors = function(color1, color2) {
+          colorA = color1;
+          colorB = color2;
+          p.redraw();
+        };
+        
+        p.regenerate = generateComposition;
+        
+      }, parent);
+    }
+    
+    // Create both sketches
+    sketch1 = createSketch('sketch1');
+    sketch2 = createSketch('sketch2');
+    
+    // Initially hide second sketch
+    document.getElementById('sketch2').style.display = 'none';
+    
+    // Handle diptych toggle
+    document.getElementById('diptychToggle').addEventListener('change', function(e) {
+      document.getElementById('sketch2').style.display = e.target.checked ? 'block' : 'none';
+      if (e.target.checked) {
+        sketch2.regenerate();
+      }
+    });
+    
+    // Handle color changes
+    function updateColors() {
+      const colorA = document.getElementById('colorA').value;
+      const colorB = document.getElementById('colorB').value;
+      document.getElementById('swatchA').style.backgroundColor = colorA;
+      document.getElementById('swatchB').style.backgroundColor = colorB;
+      
+      sketch1.updateColors(sketch1._renderer._pInst.color(colorA), sketch1._renderer._pInst.color(colorB));
+      sketch2.updateColors(sketch2._renderer._pInst.color(colorA), sketch2._renderer._pInst.color(colorB));
+    }
+    
+    document.getElementById('colorA').addEventListener('input', updateColors);
+    document.getElementById('colorB').addEventListener('input', updateColors);
+    
+    // Initialize color swatches
+    document.getElementById('swatchA').style.backgroundColor = '#0A1019';
+    document.getElementById('swatchB').style.backgroundColor = '#5B5448';
+    
+    // Function to regenerate both compositions
+    function regenerateAll() {
+      sketch1.regenerate();
+      if (document.getElementById('diptychToggle').checked) {
+        sketch2.regenerate();
+      }
+    }
   </script>
 </body>
 </html>
