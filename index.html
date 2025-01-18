@@ -3,6 +3,7 @@
 <head>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
+    /* Previous CSS remains the same */
     body { 
       margin: 0; 
       display: flex; 
@@ -31,7 +32,7 @@
       align-items: center;
       gap: 15px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      margin-top: 100px;
+      margin-top: 20px;
     }
     .randomizer-btn {
       background: #666;
@@ -92,6 +93,17 @@
       let colorA;
       let colorB;
       let rectangles = [];
+
+      function biasedWidthSelection() {
+        const rand = p.random();
+        if (rand < 0.4) { // 40% chance for small sizes
+          return STRIP_WIDTHS.slice(0, 2)[Math.floor(p.random(2))];
+        } else if (rand < 0.7) { // 30% chance for large sizes
+          return STRIP_WIDTHS.slice(-2)[Math.floor(p.random(2))];
+        } else { // 30% chance for middle sizes
+          return STRIP_WIDTHS.slice(2, 4)[Math.floor(p.random(2))];
+        }
+      }
       
       p.setup = function() {
         const container = p.createDiv('');
@@ -100,18 +112,15 @@
         const canvas = p.createCanvas(CANVAS_WIDTH * SCALE, CANVAS_HEIGHT * SCALE);
         container.child(canvas);
         
-        // Create controls div
         const controls = p.createDiv('');
         controls.class('controls');
         container.child(controls);
         
-        // Randomizer button
         let regenButton = p.createButton('RANDOMIZER');
         regenButton.class('randomizer-btn');
         regenButton.mousePressed(generateComposition);
         controls.child(regenButton);
         
-        // Left color group
         const leftGroup = p.createDiv('');
         leftGroup.class('color-group');
         const leftLabel = p.createSpan('LEFT');
@@ -120,12 +129,11 @@
         
         const leftSwatch = p.createDiv('');
         leftSwatch.class('color-swatch');
-        let colorAInput = p.createInput('#8D1BF0', 'color');
+        let colorAInput = p.createInput('rgb(10,16,25)', 'color');
         leftSwatch.child(colorAInput);
         leftGroup.child(leftSwatch);
         controls.child(leftGroup);
         
-        // Right color group
         const rightGroup = p.createDiv('');
         rightGroup.class('color-group');
         const rightLabel = p.createSpan('RIGHT');
@@ -134,12 +142,11 @@
         
         const rightSwatch = p.createDiv('');
         rightSwatch.class('color-swatch');
-        let colorBInput = p.createInput('#FFB842', 'color');
+        let colorBInput = p.createInput('rgb(91,84,72)', 'color');
         rightSwatch.child(colorBInput);
         rightGroup.child(rightSwatch);
         controls.child(rightGroup);
         
-        // Add color input event listeners
         colorAInput.input(() => {
           colorA = p.color(colorAInput.value());
           leftSwatch.style('background-color', colorAInput.value());
@@ -152,11 +159,10 @@
           p.redraw();
         });
         
-        // Initialize colors
-        colorA = p.color(colorAInput.value());
-        colorB = p.color(colorBInput.value());
-        leftSwatch.style('background-color', colorAInput.value());
-        rightSwatch.style('background-color', colorBInput.value());
+        colorA = p.color(10, 16, 25);
+        colorB = p.color(91, 84, 72);
+        leftSwatch.style('background-color', `rgb(10,16,25)`);
+        rightSwatch.style('background-color', `rgb(91,84,72)`);
         
         generateComposition();
       };
@@ -166,7 +172,8 @@
         let currentY = 0;
         
         while (currentY < CANVAS_HEIGHT) {
-          if (p.random() < 0.1 && currentY < CANVAS_HEIGHT - 4) {
+          // Increased probability for thin strips
+          if (p.random() < 0.15 && currentY < CANVAS_HEIGHT - 4) {
             let height = Math.max(0.5, Math.round(p.random(0.5, 4) * 2) / 2);
             rectangles.push({
               x: 0,
@@ -180,15 +187,17 @@
           }
           
           let remainingHeight = CANVAS_HEIGHT - currentY;
+          // Modified height generation to favor more extreme values
           let rowHeight = Math.min(
             remainingHeight,
-            Math.max(4, Math.round(p.random(4, 16) * 2) / 2)
+            Math.max(4, Math.round(p.random() < 0.7 ? p.random(4, 8) : p.random(12, 16)) * 2) / 2
           );
           
           let currentX = 0;
           while (currentX < CANVAS_WIDTH) {
             let remainingWidth = CANVAS_WIDTH - currentX;
             let availableWidths = STRIP_WIDTHS.filter(w => w <= remainingWidth);
+            
             if (availableWidths.length === 0) {
               rectangles.push({
                 x: currentX,
@@ -199,10 +208,15 @@
               break;
             }
             
-            let width = availableWidths[Math.floor(p.random(availableWidths.length))];
+            // Use biased width selection
+            let width = biasedWidthSelection();
+            while (width > remainingWidth) {
+              width = biasedWidthSelection();
+            }
             
-            if (width >= 8 && p.random() < 0.3) {
-              let numSections = p.random() < 0.7 ? 2 : 3;
+            // Reduced probability of subdivision for large rectangles
+            if (width >= 16 && p.random() < 0.2) {
+              let numSections = 2;
               let subWidth = width / numSections;
               for (let i = 0; i < numSections; i++) {
                 rectangles.push({
@@ -233,14 +247,12 @@
       p.draw = function() {
         p.background(255);
         
-        // Draw rectangles with gradients
         rectangles.forEach(rect => {
           let x = rect.x * SCALE;
           let y = rect.y * SCALE;
           let w = rect.width * SCALE;
           let h = rect.height * SCALE;
           
-          // Create gradient
           for (let i = 0; i < w; i++) {
             let inter = i / w;
             let c = p.lerpColor(colorA, colorB, inter);
@@ -248,7 +260,6 @@
             p.line(x + i, y, x + i, y + h);
           }
           
-          // Draw border
           p.stroke(0);
           p.noFill();
           p.rect(x, y, w, h);
