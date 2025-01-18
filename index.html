@@ -147,17 +147,33 @@
         rightSwatch.child(colorBInput);
         rightGroup.child(rightSwatch);
         controls.child(rightGroup);
+
+        // Debounce function
+        function debounce(func, wait) {
+          let timeout;
+          return function executedFunction(...args) {
+            const later = () => {
+              clearTimeout(timeout);
+              func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+          };
+        }
+        
+        // Debounced redraw
+        const debouncedRedraw = debounce(() => p.redraw(), 16);  // About 60fps
         
         colorAInput.input(() => {
           colorA = p.color(colorAInput.value());
           leftSwatch.style('background-color', colorAInput.value());
-          p.redraw();
+          debouncedRedraw();
         });
         
         colorBInput.input(() => {
           colorB = p.color(colorBInput.value());
           rightSwatch.style('background-color', colorBInput.value());
-          p.redraw();
+          debouncedRedraw();
         });
         
         colorA = p.color(19, 19, 22);
@@ -173,27 +189,165 @@
       function generateComposition() {
         rectangles = [];
         
-        // Determine total number of rectangles for this composition
+        // Determine total number of rectangles with weighted distribution
         const minRectangles = 2;
         const maxRectangles = 24;
-        const totalRectangles = Math.floor(p.random(minRectangles, maxRectangles + 1));
         
-        if (totalRectangles === 2) {
-          // Special case for two rectangles
-          rectangles = [
-            {
-              x: 0,
-              y: 0,
-              width: CANVAS_WIDTH / 2,
-              height: CANVAS_HEIGHT
-            },
-            {
-              x: CANVAS_WIDTH / 2,
-              y: 0,
-              width: CANVAS_WIDTH / 2,
-              height: CANVAS_HEIGHT
-            }
-          ];
+        let rand = p.random();
+        let totalRectangles;
+        
+        if (rand < 0.01) {        // 1% chance for 2
+          totalRectangles = 2;
+        } else if (rand < 0.02) {  // 1% chance for 3
+          totalRectangles = 3;
+        } else if (rand < 0.03) {  // 1% chance for 4
+          totalRectangles = 4;
+        } else if (rand < 0.04) {  // 1% chance for 5-6
+          totalRectangles = Math.floor(p.random(5, 7));
+        } else if (rand < 0.05) {  // 1% chance for 7-8
+          totalRectangles = Math.floor(p.random(7, 9));
+        } else if (rand < 0.35) {  // 30% chance for 9-12
+          totalRectangles = Math.floor(p.random(9, 13));
+        } else {                   // 65% chance for 13-24
+          totalRectangles = Math.floor(p.random(13, maxRectangles + 1));
+        }
+        
+        if (totalRectangles <= 8) {
+          // Special cases for low numbers of rectangles
+          switch(totalRectangles) {
+            case 2:
+              // Three rows with middle row containing 2 rectangles
+              let height = CANVAS_HEIGHT / 3;
+              rectangles = [
+                // Top row - full width
+                { x: 0, y: 0, width: CANVAS_WIDTH, height: height },
+                // Middle row - split in half
+                { x: 0, y: height, width: CANVAS_WIDTH, height: height },
+                // Bottom row - full width
+                { x: 0, y: height * 2, width: CANVAS_WIDTH, height: height }
+              ];
+              break;
+              
+            case 3:
+              rectangles = [
+                { x: 0, y: 0, width: CANVAS_WIDTH / 3, height: CANVAS_HEIGHT },
+                { x: CANVAS_WIDTH / 3, y: 0, width: CANVAS_WIDTH / 3, height: CANVAS_HEIGHT },
+                { x: (CANVAS_WIDTH * 2) / 3, y: 0, width: CANVAS_WIDTH / 3, height: CANVAS_HEIGHT }
+              ];
+              break;
+              
+            case 4:
+              rectangles = [
+                { x: 0, y: 0, width: CANVAS_WIDTH / 2, height: CANVAS_HEIGHT / 2 },
+                { x: CANVAS_WIDTH / 2, y: 0, width: CANVAS_WIDTH / 2, height: CANVAS_HEIGHT / 2 },
+                { x: 0, y: CANVAS_HEIGHT / 2, width: CANVAS_WIDTH / 2, height: CANVAS_HEIGHT / 2 },
+                { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, width: CANVAS_WIDTH / 2, height: CANVAS_HEIGHT / 2 }
+              ];
+              break;
+
+            case 4:
+              let fourType = p.random();
+              if (fourType < 0.33) {  // Three on top, one bottom
+                let topHeight = CANVAS_HEIGHT * p.random(0.2, 0.4);
+                let split1 = CANVAS_WIDTH * p.random(0.2, 0.4);
+                let split2 = CANVAS_WIDTH * p.random(0.6, 0.8);
+                rectangles = [
+                  { x: 0, y: 0, width: split1, height: topHeight },
+                  { x: split1, y: 0, width: split2 - split1, height: topHeight },
+                  { x: split2, y: 0, width: CANVAS_WIDTH - split2, height: topHeight },
+                  { x: 0, y: topHeight, width: CANVAS_WIDTH, height: CANVAS_HEIGHT - topHeight }
+                ];
+              } else if (fourType < 0.66) {  // Asymmetric grid
+                let vertSplit = CANVAS_WIDTH * p.random(0.3, 0.7);
+                let horizSplit = CANVAS_HEIGHT * p.random(0.3, 0.7);
+                rectangles = [
+                  { x: 0, y: 0, width: vertSplit, height: horizSplit },
+                  { x: vertSplit, y: 0, width: CANVAS_WIDTH - vertSplit, height: horizSplit },
+                  { x: 0, y: horizSplit, width: vertSplit, height: CANVAS_HEIGHT - horizSplit },
+                  { x: vertSplit, y: horizSplit, width: CANVAS_WIDTH - vertSplit, height: CANVAS_HEIGHT - horizSplit }
+                ];
+              } else {  // One large center with three around
+                let centerWidth = CANVAS_WIDTH * 0.5;
+                let centerHeight = CANVAS_HEIGHT * 0.6;
+                let centerX = (CANVAS_WIDTH - centerWidth) / 2;
+                let centerY = (CANVAS_HEIGHT - centerHeight) / 2;
+                rectangles = [
+                  // Center
+                  { x: centerX, y: centerY, width: centerWidth, height: centerHeight },
+                  // Top
+                  { x: 0, y: 0, width: CANVAS_WIDTH, height: centerY },
+                  // Left
+                  { x: 0, y: centerY, width: centerX, height: centerHeight },
+                  // Right
+                  { x: centerX + centerWidth, y: centerY, width: CANVAS_WIDTH - (centerX + centerWidth), height: centerHeight }
+                ];
+              }
+              break;
+            case 5:
+              // Cross pattern: one large center + 4 corners
+              let centerSize = CANVAS_WIDTH / 2;
+              rectangles = [
+                // Center
+                { x: CANVAS_WIDTH / 4, y: CANVAS_HEIGHT / 4, 
+                  width: centerSize, height: centerSize },
+                // Corners
+                { x: 0, y: 0, width: centerSize, height: centerSize },
+                { x: centerSize, y: 0, width: centerSize, height: centerSize },
+                { x: 0, y: centerSize, width: centerSize, height: centerSize },
+                { x: centerSize, y: centerSize, width: centerSize, height: centerSize }
+              ];
+              break;
+            case 6:
+              // 2x3 grid
+              let width6 = CANVAS_WIDTH / 3;
+              let height6 = CANVAS_HEIGHT / 2;
+              for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 2; j++) {
+                  rectangles.push({
+                    x: i * width6,
+                    y: j * height6,
+                    width: width6,
+                    height: height6
+                  });
+                }
+              }
+              break;
+            case 7:
+              // 6 equal columns with one spanning the middle
+              let colWidth = CANVAS_WIDTH / 6;
+              // Add the 6 vertical columns
+              for (let i = 0; i < 6; i++) {
+                rectangles.push({
+                  x: i * colWidth,
+                  y: 0,
+                  width: colWidth,
+                  height: CANVAS_HEIGHT
+                });
+              }
+              // Add one rectangle spanning the middle
+              rectangles.push({
+                x: colWidth * 2,
+                y: CANVAS_HEIGHT / 4,
+                width: colWidth * 2,
+                height: CANVAS_HEIGHT / 2
+              });
+              break;
+            case 8:
+              // 4x2 grid
+              let width8 = CANVAS_WIDTH / 4;
+              let height8 = CANVAS_HEIGHT / 2;
+              for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 2; j++) {
+                  rectangles.push({
+                    x: i * width8,
+                    y: j * height8,
+                    width: width8,
+                    height: height8
+                  });
+                }
+              }
+              break;
+          }
           p.redraw();
           return;
         }
@@ -347,10 +501,8 @@
             }
           }
           
-          // Draw rectangle border
-          p.stroke(0);
-          p.noFill();
-          p.rect(x, y, w, h);
+          // Remove the rectangle border drawing
+          // No more p.stroke() or border drawing here
         });
       };
     };
