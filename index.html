@@ -3,7 +3,6 @@
 <head>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
-    /* Previous CSS remains the same */
     body { 
       margin: 0; 
       display: flex; 
@@ -89,18 +88,20 @@
       const CANVAS_WIDTH = 48;
       const CANVAS_HEIGHT = 60;
       const STRIP_WIDTHS = [4, 8, 12, 16, 20, 24];
+      const CHECKER_SUBDIVISIONS = 4;
       
       let colorA;
       let colorB;
+      let grayColor;
       let rectangles = [];
 
       function biasedWidthSelection() {
         const rand = p.random();
-        if (rand < 0.4) { // 40% chance for small sizes
+        if (rand < 0.4) {
           return STRIP_WIDTHS.slice(0, 2)[Math.floor(p.random(2))];
-        } else if (rand < 0.7) { // 30% chance for large sizes
+        } else if (rand < 0.7) {
           return STRIP_WIDTHS.slice(-2)[Math.floor(p.random(2))];
-        } else { // 30% chance for middle sizes
+        } else {
           return STRIP_WIDTHS.slice(2, 4)[Math.floor(p.random(2))];
         }
       }
@@ -129,7 +130,7 @@
         
         const leftSwatch = p.createDiv('');
         leftSwatch.class('color-swatch');
-        let colorAInput = p.createInput('rgb(10,16,25)', 'color');
+        let colorAInput = p.createInput('rgb(19,19,22)', 'color');
         leftSwatch.child(colorAInput);
         leftGroup.child(leftSwatch);
         controls.child(leftGroup);
@@ -142,7 +143,7 @@
         
         const rightSwatch = p.createDiv('');
         rightSwatch.class('color-swatch');
-        let colorBInput = p.createInput('rgb(91,84,72)', 'color');
+        let colorBInput = p.createInput('rgb(85,83,83)', 'color');
         rightSwatch.child(colorBInput);
         rightGroup.child(rightSwatch);
         controls.child(rightGroup);
@@ -159,26 +160,50 @@
           p.redraw();
         });
         
-        colorA = p.color(10, 16, 25);
-        colorB = p.color(91, 84, 72);
-        leftSwatch.style('background-color', `rgb(10,16,25)`);
-        rightSwatch.style('background-color', `rgb(91,84,72)`);
+        colorA = p.color(19, 19, 22);
+        colorB = p.color(85, 83, 83);
+        grayColor = p.color(50);
+        
+        leftSwatch.style('background-color', 'rgb(19,19,22)');
+        rightSwatch.style('background-color', 'rgb(85,83,83)');
         
         generateComposition();
       };
       
       function generateComposition() {
         rectangles = [];
-        let currentY = 0;
         
+        // Determine total number of rectangles for this composition
+        const minRectangles = 2;
+        const maxRectangles = 24;
+        const totalRectangles = Math.floor(p.random(minRectangles, maxRectangles + 1));
+        
+        if (totalRectangles === 2) {
+          // Special case for two rectangles
+          rectangles = [
+            {
+              x: 0,
+              y: 0,
+              width: CANVAS_WIDTH / 2,
+              height: CANVAS_HEIGHT
+            },
+            {
+              x: CANVAS_WIDTH / 2,
+              y: 0,
+              width: CANVAS_WIDTH / 2,
+              height: CANVAS_HEIGHT
+            }
+          ];
+          p.redraw();
+          return;
+        }
+        
+        let currentY = 0;
         while (currentY < CANVAS_HEIGHT) {
-          // Increased probability for thin wide strips
-          if (p.random() < 0.2 && currentY < CANVAS_HEIGHT - 5) {  // 20% chance for thin strips
-            // Generate a thin strip between 1" and 5" tall
+          if (p.random() < 0.2 && currentY < CANVAS_HEIGHT - 5) {
             let height = Math.round(p.random(1, 5));
+            let xOffset = (CANVAS_WIDTH - 36) / 2;
             
-            // 36" wide strip, centered
-            let xOffset = (CANVAS_WIDTH - 36) / 2; // Center the 36" strip
             rectangles.push({
               x: xOffset,
               y: currentY,
@@ -187,9 +212,7 @@
               isFullWidth: false
             });
             
-            // Add side pieces if there's room
             if (xOffset > 0) {
-              // Left side piece
               rectangles.push({
                 x: 0,
                 y: currentY,
@@ -198,7 +221,6 @@
                 isFullWidth: false
               });
               
-              // Right side piece
               rectangles.push({
                 x: xOffset + 36,
                 y: currentY,
@@ -213,13 +235,33 @@
           }
           
           let remainingHeight = CANVAS_HEIGHT - currentY;
-          // Modified height generation to favor more extreme values
-          let rowHeight = Math.min(
-            remainingHeight,
-            Math.max(4, Math.round(p.random() < 0.7 ? p.random(4, 8) : p.random(12, 16)) * 2) / 2
-          );
+          let rowHeight;
+          let rand = p.random();
+          
+          if (rand < 0.1 && remainingHeight >= 24) {
+            rowHeight = p.random() < 0.5 ? 24 : 30;
+          } else if (rand < 0.15) {
+            rowHeight = Math.min(remainingHeight, 16);
+          } else {
+            rowHeight = Math.min(
+              remainingHeight,
+              Math.max(4, Math.round(p.random() < 0.7 ? p.random(4, 8) : p.random(8, 12)))
+            );
+          }
           
           let currentX = 0;
+          
+          if (rowHeight >= 16 && p.random() < 0.4) {
+            rectangles.push({
+              x: currentX,
+              y: currentY,
+              width: CANVAS_WIDTH,
+              height: rowHeight
+            });
+            currentY += rowHeight;
+            continue;
+          }
+          
           while (currentX < CANVAS_WIDTH) {
             let remainingWidth = CANVAS_WIDTH - currentX;
             let availableWidths = STRIP_WIDTHS.filter(w => w <= remainingWidth);
@@ -234,13 +276,11 @@
               break;
             }
             
-            // Use biased width selection
             let width = biasedWidthSelection();
             while (width > remainingWidth) {
               width = biasedWidthSelection();
             }
             
-            // Reduced probability of subdivision for large rectangles
             if (width >= 16 && p.random() < 0.2) {
               let numSections = 2;
               let subWidth = width / numSections;
@@ -279,13 +319,35 @@
           let w = rect.width * SCALE;
           let h = rect.height * SCALE;
           
-          for (let i = 0; i < w; i++) {
-            let inter = i / w;
-            let c = p.lerpColor(colorA, colorB, inter);
-            p.stroke(c);
-            p.line(x + i, y, x + i, y + h);
+          // Calculate number of checker squares that fit in each dimension
+          let squaresAcross = Math.floor(rect.width * CHECKER_SUBDIVISIONS);
+          let squaresDown = Math.floor(rect.height * CHECKER_SUBDIVISIONS);
+          
+          let checkerSize = SCALE / CHECKER_SUBDIVISIONS;
+          
+          for(let i = 0; i < squaresAcross; i++) {
+            for(let j = 0; j < squaresDown; j++) {
+              let squareX = x + (i * checkerSize);
+              let squareY = y + (j * checkerSize);
+              
+              // Calculate absolute position using the actual x/y coordinates
+              let absoluteX = Math.floor((rect.x + i/CHECKER_SUBDIVISIONS) * CHECKER_SUBDIVISIONS);
+              let absoluteY = Math.floor((rect.y + j/CHECKER_SUBDIVISIONS) * CHECKER_SUBDIVISIONS);
+              
+              if((absoluteX + absoluteY) % 2 === 0) {
+                p.fill(grayColor);
+              } else {
+                let inter = i / squaresAcross;
+                let c = p.lerpColor(colorA, colorB, inter);
+                p.fill(c);
+              }
+              
+              p.noStroke();
+              p.rect(squareX, squareY, checkerSize, checkerSize);
+            }
           }
           
+          // Draw rectangle border
           p.stroke(0);
           p.noFill();
           p.rect(x, y, w, h);
