@@ -34,7 +34,7 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       margin-top: 20px;
     }
-    .randomizer-btn {
+    .regenerate-btn {
       background: #666;
       color: white;
       border: none;
@@ -47,7 +47,7 @@
       letter-spacing: 0.5px;
       transition: background 0.2s;
     }
-    .Regenerate-btn:hover {
+    .regenerate-btn:hover {
       background: #777;
     }
     .color-group {
@@ -117,7 +117,7 @@
         container.child(controls);
         
         let regenButton = p.createButton('RANDOMIZER');
-        regenButton.class('randomizer-btn');
+        regenButton.class('regenerate-btn');
         regenButton.mousePressed(generateComposition);
         controls.child(regenButton);
         
