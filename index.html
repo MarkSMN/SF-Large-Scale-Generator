@@ -142,14 +142,19 @@
         p.redraw();
       });
       
+      // Setup p5.js with performance settings
       p.setup = function() {
         // Calculate initial dimensions
         calculateDimensions();
+        
+        // Use a lower framerate to improve performance
+        p.frameRate(30);
         
         const container = p.createDiv('');
         container.class('container');
         
         const canvas = p.createCanvas(canvasRealWidth, canvasRealHeight);
+        canvas.mousePressed(() => false); // Prevent default mouse behavior for better performance
         container.child(canvas);
         
         const controls = p.createDiv('');
@@ -524,10 +529,17 @@
           let newSquaresAcross = Math.ceil(w / checkerSize);
           let newSquaresDown = Math.ceil(h / checkerSize);
           
+          // Only draw squares that would be visible (optimization)
           for(let i = 0; i < newSquaresAcross; i++) {
             for(let j = 0; j < newSquaresDown; j++) {
               let squareX = x + (i * checkerSize);
               let squareY = y + (j * checkerSize);
+              
+              // Skip rendering if outside visible area
+              if (squareX < -checkerSize || squareX > p.width || 
+                  squareY < -checkerSize || squareY > p.height) {
+                continue;
+              }
               
               // Calculate absolute position for checker pattern
               let absoluteX = Math.floor(rect.x * CHECKER_SUBDIVISIONS) + i;
